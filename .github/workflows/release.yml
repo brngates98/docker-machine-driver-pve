@@ -24,11 +24,6 @@ jobs:
       - run: >
           git config user.name 'github-actions[bot]'
           && git config user.email 'github-actions[bot]@users.noreply.github.com'
-      - name: Get Pages url
-        id: pages
-        uses: actions/configure-pages@v2
-        with:
-          enablement: false
       # Set-up build environment
       - name: Install Helm
         uses: azure/setup-helm@v4.3.0
@@ -66,10 +61,13 @@ jobs:
           && yarn build-pkg pve-node-driver
       - name: Package Helm Chart
         run: >
+          PAGES_BASE_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          && echo "Using pages base URL: ${PAGES_BASE_URL}"
+          &&
           CHECKSUM="$(sha256sum ./release_artifacts/docker-machine-driver-pve | cut -d' ' -f1)"
           && yq -i ".nodeDriver.url = \"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/docker-machine-driver-pve\"" deploy/charts/pve-node-driver/values.yaml
           && yq -i ".nodeDriver.checksum = \"${CHECKSUM}\"" deploy/charts/pve-node-driver/values.yaml
-          && yq -i ".uiPlugin.endpoint = \"${{ steps.pages.outputs.base_url }}/extensions/pve-node-driver/${GITHUB_REF_NAME#v}\"" deploy/charts/pve-node-driver/values.yaml
+          && yq -i ".uiPlugin.endpoint = \"${PAGES_BASE_URL}/extensions/pve-node-driver/${GITHUB_REF_NAME#v}\"" deploy/charts/pve-node-driver/values.yaml
           && cat deploy/charts/pve-node-driver/values.yaml
           && helm package ./deploy/charts/pve-node-driver \
               --version "${GITHUB_REF_NAME#v}" \
