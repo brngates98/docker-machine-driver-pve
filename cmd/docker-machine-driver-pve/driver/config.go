@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,8 @@ const (
 	flagNetworkInterface = "pve-network-interface"
 	flagSSHUser          = "pve-ssh-user"
 	flagSSHPort          = "pve-ssh-port"
+	flagCloudInit        = "pve-cloud-init"
+	flagCloudConfig      = "pve-cloud-config"
 	flagProcessorSockets = "pve-processor-sockets"
 	flagProcessorCores   = "pve-processor-cores"
 	flagMemory           = "pve-memory"
@@ -64,6 +67,12 @@ type config struct {
 
 	// If set, number of processor sockets to configure for the machine.
 	ProcessorSockets *int
+
+	// Optional cloud-init user-data source (file path or URL).
+	CloudInit string
+
+	// Optional cloud-config content loaded from file path.
+	CloudConfig string
 
 	// If set, number of processor cores to configure for the machine.
 	ProcessorCores *int
@@ -134,6 +143,16 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   flagSSHPort,
 			EnvVar: flagEnvVarFromFlagName(flagSSHPort),
 			Usage:  fmt.Sprintf("Port to use when connecting to the machine via SSH, defaults to '%d'", defaultSSHPort),
+		},
+		mcnflag.StringFlag{
+			Name:   flagCloudInit,
+			EnvVar: flagEnvVarFromFlagName(flagCloudInit),
+			Usage:  "Optional cloud-init user-data source (filepath or URL)",
+		},
+		mcnflag.StringFlag{
+			Name:   flagCloudConfig,
+			EnvVar: flagEnvVarFromFlagName(flagCloudConfig),
+			Usage:  "Optional filepath to a cloud-config YAML file to merge into user-data",
 		},
 		mcnflag.StringFlag{
 			Name:   flagProcessorSockets,
@@ -223,6 +242,18 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		d.SSHPort = defaultSSHPort
 	} else if d.SSHPort < 0 {
 		return fmt.Errorf("flag '--%s' must be > 0", flagSSHPort)
+	}
+
+	d.CloudInit = strings.TrimSpace(opts.String(flagCloudInit))
+
+	d.CloudConfig = strings.TrimSpace(opts.String(flagCloudConfig))
+	if d.CloudConfig != "" {
+		content, err := os.ReadFile(d.CloudConfig)
+		if err != nil {
+			return fmt.Errorf("failed to read flag '--%s': %w", flagCloudConfig, err)
+		}
+
+		d.CloudConfig = string(content)
 	}
 
 	var err error

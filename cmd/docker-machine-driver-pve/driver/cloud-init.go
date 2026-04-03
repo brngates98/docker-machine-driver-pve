@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/luthermonson/go-proxmox"
@@ -105,21 +109,13 @@ func (d *Driver) generateCloudinitUserdata() (string, error) {
 		return "", fmt.Errorf("failed to read machine's SSH public key: %w", err)
 	}
 
-	userdata := map[string]interface{}{
-		"hostname":             d.MachineName,
-		"preserve_hostname":    false,
-		"create_hostname_file": true,
-		"users": []map[string]interface{}{
-			{
-				"name":        d.SSHUser,
-				"lock_passwd": true,
-				"sudo":        "ALL=(ALL) NOPASSWD:ALL",
-				"ssh_authorized_keys": []string{
-					string(sshPublicKey),
-				},
-			},
-		},
+	userdata, err := d.getBaseCloudinitUserdata()
+	if err != nil {
+		return "", err
 	}
+
+	defaultCloudInitUserdata(userdata, d.MachineName)
+	upsertCloudInitSSHUser(userdata, d.SSHUser, strings.TrimSpace(string(sshPublicKey)))
 
 	userdataYAML, err := yaml.Marshal(&userdata)
 	if err != nil {
@@ -127,4 +123,162 @@ func (d *Driver) generateCloudinitUserdata() (string, error) {
 	}
 
 	return fmt.Sprintf("#cloud-config\n%s", userdataYAML), nil
+}
+
+func (d *Driver) getBaseCloudinitUserdata() (map[string]interface{}, error) {
+	cloudConfig := strings.TrimSpace(d.CloudConfig)
+	if cloudConfig == "" {
+		var err error
+		cloudConfig, err = loadCloudConfigFromSource(strings.TrimSpace(d.CloudInit))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	cloudConfig = strings.TrimSpace(cloudConfig)
+	if cloudConfig == "" {
+		return map[string]interface{}{}, nil
+	}
+
+	cloudConfig = strings.TrimPrefix(cloudConfig, "#cloud-config")
+	cloudConfig = strings.TrimSpace(cloudConfig)
+
+	userdata := map[string]interface{}{}
+	if err := yaml.Unmarshal([]byte(cloudConfig), &userdata); err != nil {
+		return nil, fmt.Errorf("failed to parse cloud-init user-data: %w", err)
+	}
+
+	return userdata, nil
+}
+
+func loadCloudConfigFromSource(source string) (string, error) {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return "", nil
+	}
+
+	parsedURL, err := url.ParseRequestURI(source)
+	if err == nil && parsedURL.Scheme != "" && parsedURL.Host != "" {
+		client := &http.Client{Timeout: 30 * time.Second}
+
+		resp, reqErr := client.Get(source) //nolint:noctx,gosec // User-provided cloud-init URL.
+		if reqErr != nil {
+			return "", fmt.Errorf("failed to fetch cloud-init URL '%s': %w", source, reqErr)
+		}
+
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= http.StatusBadRequest {
+			return "", fmt.Errorf("failed to fetch cloud-init URL '%s': status code %d", source, resp.StatusCode)
+		}
+
+		content, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return "", fmt.Errorf("failed to read cloud-init URL response '%s': %w", source, readErr)
+		}
+
+		return string(content), nil
+	}
+
+	content, readErr := os.ReadFile(source)
+	if readErr != nil {
+		return "", fmt.Errorf("failed to read cloud-init source '%s': %w", source, readErr)
+	}
+
+	return string(content), nil
+}
+
+func defaultCloudInitUserdata(userdata map[string]interface{}, machineName string) {
+	if _, ok := userdata["hostname"]; !ok {
+		userdata["hostname"] = machineName
+	}
+
+	if _, ok := userdata["preserve_hostname"]; !ok {
+		userdata["preserve_hostname"] = false
+	}
+
+	if _, ok := userdata["create_hostname_file"]; !ok {
+		userdata["create_hostname_file"] = true
+	}
+}
+
+func upsertCloudInitSSHUser(userdata map[string]interface{}, sshUser, sshPublicKey string) {
+	defaultUser := map[string]interface{}{
+		"name":        sshUser,
+		"lock_passwd": true,
+		"sudo":        "ALL=(ALL) NOPASSWD:ALL",
+	}
+
+	usersValue, usersSet := userdata["users"]
+	if !usersSet {
+		defaultUser["ssh_authorized_keys"] = []interface{}{sshPublicKey}
+		userdata["users"] = []interface{}{defaultUser}
+		return
+	}
+
+	usersList, ok := usersValue.([]interface{})
+	if !ok {
+		defaultUser["ssh_authorized_keys"] = []interface{}{sshPublicKey}
+		userdata["users"] = []interface{}{usersValue, defaultUser}
+		return
+	}
+
+	for idx, entry := range usersList {
+		userMap, mapOk := entry.(map[string]interface{})
+		if !mapOk {
+			continue
+		}
+
+		userName, nameOk := userMap["name"].(string)
+		if !nameOk || userName != sshUser {
+			continue
+		}
+
+		if _, hasLockPasswd := userMap["lock_passwd"]; !hasLockPasswd {
+			userMap["lock_passwd"] = true
+		}
+
+		if _, hasSudo := userMap["sudo"]; !hasSudo {
+			userMap["sudo"] = "ALL=(ALL) NOPASSWD:ALL"
+		}
+
+		switch keys := userMap["ssh_authorized_keys"].(type) {
+		case []interface{}:
+			for _, key := range keys {
+				existingKey, isString := key.(string)
+				if isString && strings.TrimSpace(existingKey) == sshPublicKey {
+					usersList[idx] = userMap
+					userdata["users"] = usersList
+					return
+				}
+			}
+
+			userMap["ssh_authorized_keys"] = append(keys, sshPublicKey)
+		case []string:
+			keysAsInterfaces := make([]interface{}, 0, len(keys)+1)
+			found := false
+
+			for _, key := range keys {
+				keysAsInterfaces = append(keysAsInterfaces, key)
+				if strings.TrimSpace(key) == sshPublicKey {
+					found = true
+				}
+			}
+
+			if !found {
+				keysAsInterfaces = append(keysAsInterfaces, sshPublicKey)
+			}
+
+			userMap["ssh_authorized_keys"] = keysAsInterfaces
+		default:
+			userMap["ssh_authorized_keys"] = []interface{}{sshPublicKey}
+		}
+
+		usersList[idx] = userMap
+		userdata["users"] = usersList
+		return
+	}
+
+	defaultUser["ssh_authorized_keys"] = []interface{}{sshPublicKey}
+	userdata["users"] = append(usersList, defaultUser)
 }
