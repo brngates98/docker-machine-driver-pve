@@ -189,7 +189,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 
 // SetConfigFromFlags implements drivers.Driver.
 //
-//nolint:cyclop,gocyclo
+//nolint:cyclop,gocyclo,gocognit
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.URL = opts.String(flagURL)
 	if d.URL == "" {
