@@ -13,41 +13,41 @@ import (
 )
 
 func TestGenerateCloudinitUserdata_Default(t *testing.T) {
-	d := newCloudInitTestDriver(t)
+	testDriver := newCloudInitTestDriver(t)
 
-	userdata, err := d.generateCloudinitUserdata()
+	userdata, err := testDriver.generateCloudinitUserdata()
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(userdata, "#cloud-config\n"))
 
 	parsed := decodeCloudConfig(t, userdata)
-	require.Equal(t, d.MachineName, parsed["hostname"])
+	require.Equal(t, testDriver.MachineName, parsed["hostname"])
 	require.Equal(t, false, parsed["preserve_hostname"])
 	require.Equal(t, true, parsed["create_hostname_file"])
 
-	user := requireUser(t, parsed, d.SSHUser)
+	user := requireUser(t, parsed, testDriver.SSHUser)
 	require.Equal(t, true, user["lock_passwd"])
 	require.Equal(t, "ALL=(ALL) NOPASSWD:ALL", user["sudo"])
 	require.Contains(t, toStringSlice(user["ssh_authorized_keys"]), "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey")
 }
 
 func TestGenerateCloudinitUserdata_WithCloudConfig(t *testing.T) {
-	d := newCloudInitTestDriver(t)
-	d.CloudConfig = `
+	testDriver := newCloudInitTestDriver(t)
+	testDriver.CloudConfig = `
 #cloud-config
 package_update: true
 users:
-  - name: ` + d.SSHUser + `
+  - name: ` + testDriver.SSHUser + `
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExistingKey
 `
 
-	userdata, err := d.generateCloudinitUserdata()
+	userdata, err := testDriver.generateCloudinitUserdata()
 	require.NoError(t, err)
 
 	parsed := decodeCloudConfig(t, userdata)
 	require.Equal(t, true, parsed["package_update"])
 
-	user := requireUser(t, parsed, d.SSHUser)
+	user := requireUser(t, parsed, testDriver.SSHUser)
 	keys := toStringSlice(user["ssh_authorized_keys"])
 	require.Contains(t, keys, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExistingKey")
 	require.Contains(t, keys, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey")
@@ -64,8 +64,7 @@ func TestLoadCloudConfigFromSource_FileAndURL(t *testing.T) {
 	require.Equal(t, fileContent, fromFile)
 
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		_, writeErr := writer.Write([]byte("#cloud-config\nruncmd:\n  - echo from-url\n"))
-		require.NoError(t, writeErr)
+		_, _ = writer.Write([]byte("#cloud-config\nruncmd:\n  - echo from-url\n"))
 	}))
 	defer server.Close()
 
@@ -77,17 +76,17 @@ func TestLoadCloudConfigFromSource_FileAndURL(t *testing.T) {
 func newCloudInitTestDriver(t *testing.T) *Driver {
 	t.Helper()
 
-	d := NewDriver("cloudinit-test", t.TempDir())
-	d.SSHUser = defaultSSHUser
+	testDriver := NewDriver("cloudinit-test", t.TempDir())
+	testDriver.SSHUser = defaultSSHUser
 
-	publicKeyPath := d.GetSSHPublicKeyPath()
+	publicKeyPath := testDriver.GetSSHPublicKeyPath()
 	require.NoError(t, os.MkdirAll(filepath.Dir(publicKeyPath), 0o700))
 	require.NoError(
 		t,
 		os.WriteFile(publicKeyPath, []byte("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey\n"), 0o600),
 	)
 
-	return d
+	return testDriver
 }
 
 func decodeCloudConfig(t *testing.T, cloudConfig string) map[string]interface{} {
@@ -122,6 +121,7 @@ func requireUser(t *testing.T, userdata map[string]interface{}, userName string)
 	}
 
 	require.FailNowf(t, "user not found", "failed to find user '%s' in cloud-config users list", userName)
+
 	return nil
 }
 
