@@ -91,7 +91,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          RELEASE_FLAGS=""
+          rm -rf ./release_artifacts/ui-plugin-staging
+          && RELEASE_FLAGS=""
           && if [[ "${GITHUB_REF_NAME}" == *"-rc"* ]]; then RELEASE_FLAGS="--prerelease"; fi
           && gh release create "${GITHUB_REF_NAME}" \
             --repo="${GITHUB_REPOSITORY}" \
