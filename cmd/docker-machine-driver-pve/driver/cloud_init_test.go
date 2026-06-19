@@ -53,6 +53,44 @@ users:
 	require.Contains(t, keys, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey")
 }
 
+func TestGenerateCloudinitUserdata_WithUserData(t *testing.T) {
+	testDriver := newCloudInitTestDriver(t)
+	testDriver.UserData = `
+#cloud-config
+package_update: false
+packages:
+  - qemu-guest-agent
+`
+
+	userdata, err := testDriver.generateCloudinitUserdata()
+	require.NoError(t, err)
+
+	parsed := decodeCloudConfig(t, userdata)
+	require.Equal(t, false, parsed["package_update"])
+
+	packages, ok := parsed["packages"].([]interface{})
+	require.True(t, ok)
+	require.Contains(t, packages, "qemu-guest-agent")
+}
+
+func TestGenerateCloudinitUserdata_UserDataPrecedence(t *testing.T) {
+	testDriver := newCloudInitTestDriver(t)
+	testDriver.UserData = `
+#cloud-config
+package_update: false
+`
+	testDriver.CloudConfig = `
+#cloud-config
+package_update: true
+`
+	testDriver.CloudInit = "https://example.com/ignored"
+
+	userdata, err := testDriver.generateCloudinitUserdata()
+	require.NoError(t, err)
+
+	parsed := decodeCloudConfig(t, userdata)
+	require.Equal(t, false, parsed["package_update"])
+}
 func TestLoadCloudConfigFromSource_FileAndURL(t *testing.T) {
 	tempDir := t.TempDir()
 	filepath := filepath.Join(tempDir, "cloud-config.yaml")

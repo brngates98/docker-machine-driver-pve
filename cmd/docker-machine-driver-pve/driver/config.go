@@ -25,6 +25,7 @@ const (
 	flagSSHPort          = "pve-ssh-port"
 	flagCloudInit        = "pve-cloud-init"
 	flagCloudConfig      = "pve-cloud-config"
+	flagUserData         = "pve-user-data"
 	flagProcessorSockets = "pve-processor-sockets"
 	flagProcessorCores   = "pve-processor-cores"
 	flagMemory           = "pve-memory"
@@ -67,6 +68,9 @@ type config struct {
 
 	// If set, number of processor sockets to configure for the machine.
 	ProcessorSockets *int
+
+	// Optional inline cloud-init user-data YAML content.
+	UserData string
 
 	// Optional cloud-init user-data source (file path or URL).
 	CloudInit string
@@ -143,6 +147,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   flagSSHPort,
 			EnvVar: flagEnvVarFromFlagName(flagSSHPort),
 			Usage:  fmt.Sprintf("Port to use when connecting to the machine via SSH, defaults to '%d'", defaultSSHPort),
+		},
+		mcnflag.StringFlag{
+			Name:   flagUserData,
+			EnvVar: flagEnvVarFromFlagName(flagUserData),
+			Usage:  "Optional inline cloud-init user-data YAML content to merge into user-data",
 		},
 		mcnflag.StringFlag{
 			Name:   flagCloudInit,
@@ -244,6 +253,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		return fmt.Errorf("flag '--%s' must be > 0", flagSSHPort)
 	}
 
+	d.UserData = strings.TrimSpace(opts.String(flagUserData))
 	d.CloudInit = strings.TrimSpace(opts.String(flagCloudInit))
 
 	d.CloudConfig = strings.TrimSpace(opts.String(flagCloudConfig))

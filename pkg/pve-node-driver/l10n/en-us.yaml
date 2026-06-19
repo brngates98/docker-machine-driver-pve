@@ -72,9 +72,9 @@ cluster:
           tooltip: Port to use when connecting to the machine via SSH
       cloudInit:
         header: Cloud-init
+        userData:
+          label: User Data
+          tooltip: Optional cloud-init user-data YAML to merge with the driver defaults (hostname and SSH user/key)
         source:
-          label: User-data source
-          tooltip: Optional cloud-init user-data source (filepath or URL)
-        cloudConfig:
-          label: Cloud-config file
-          tooltip: Optional filepath to a cloud-config YAML file to merge into user-data
+          label: User-data URL
+          tooltip: Optional cloud-init user-data source (filepath or URL). Ignored when User Data is set.

@@ -56,6 +56,7 @@ export default {
         sshUser: this.value.sshUser ? this.value.sshUser : 'service',
         sshPort: this.value.sshPort ? parseInt(this.value.sshPort) : 22,
         cloudInit: this.value.cloudInit ?? '',
+        userData: this.value.userData ?? '',
         cloudConfig: this.value.cloudConfig ?? '',
         processorSockets: this.value.processorSockets ? parseInt(this.value.processorSockets) : "",
         processorCores: this.value.processorCores ? parseInt(this.value.processorCores) : "",
@@ -243,6 +244,7 @@ export default {
       this.value.sshUser = this.currentValue.sshUser;
       this.value.sshPort = this.currentValue.sshPort.toString();
       this.value.cloudInit = this.currentValue.cloudInit;
+      this.value.userData = this.currentValue.userData;
       this.value.cloudConfig = this.currentValue.cloudConfig;
       this.value.processorSockets = this.currentValue.processorSockets.toString();
       this.value.processorCores = this.currentValue.processorCores.toString();
@@ -694,6 +696,19 @@ export default {
         <t k="cluster.machineConfig.pve.cloudInit.header" />
       </h3>
       <div class="row mb-20">
+        <div class="col span-12">
+          <!-- Cloud-init user data -->
+          <LabeledInput
+            type="multiline"
+            :mode="mode"
+            v-model:value="currentValue.userData"
+            label-key="cluster.machineConfig.pve.cloudInit.userData.label"
+            tooltip-key="cluster.machineConfig.pve.cloudInit.userData.tooltip"
+            placeholder="#cloud-config"
+          />
+        </div>
+      </div>
+      <div class="row mb-20">
         <div class="col span-6">
           <!-- Cloud-init source -->
           <LabeledInput
@@ -703,17 +718,6 @@ export default {
             label-key="cluster.machineConfig.pve.cloudInit.source.label"
             tooltip-key="cluster.machineConfig.pve.cloudInit.source.tooltip"
             placeholder="https://example.com/cloud-config.yaml"
-          />
-        </div>
-        <div class="col span-6">
-          <!-- Cloud-config file -->
-          <LabeledInput
-            type="text"
-            :mode="mode"
-            v-model:value="currentValue.cloudConfig"
-            label-key="cluster.machineConfig.pve.cloudInit.cloudConfig.label"
-            tooltip-key="cluster.machineConfig.pve.cloudInit.cloudConfig.tooltip"
-            placeholder="/path/to/cloud-config.yaml"
           />
         </div>
       </div>
