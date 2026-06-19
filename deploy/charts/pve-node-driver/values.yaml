@@ -3,3 +3,4 @@ nodeDriver:
   checksum: ""
 uiPlugin:
   endpoint: ""
+  compressedEndpoint: ""

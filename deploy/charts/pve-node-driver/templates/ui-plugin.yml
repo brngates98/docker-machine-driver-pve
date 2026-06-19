@@ -10,6 +10,9 @@ spec:
     name: pve-node-driver
     version: {{ trimPrefix "v" .Chart.AppVersion | quote }}
     endpoint: {{ .Values.uiPlugin.endpoint | quote }}
+{{- if .Values.uiPlugin.compressedEndpoint }}
+    compressedEndpoint: {{ .Values.uiPlugin.compressedEndpoint | quote }}
+{{- end }}
     noCache: false
     noAuth: false
     metadata:
