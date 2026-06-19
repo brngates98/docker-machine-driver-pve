@@ -629,14 +629,23 @@ export default {
     <div class="row mb-20">
       <div class="col span-12">
         <!-- Cloud-init user data -->
-        <LabeledInput
-          type="multiline"
-          :mode="mode"
-          v-model:value="currentValue.userData"
-          label-key="cluster.machineConfig.pve.cloudInit.userData.label"
-          tooltip-key="cluster.machineConfig.pve.cloudInit.userData.tooltip"
-          placeholder="#cloud-config"
-        />
+        <div
+          class="labeled-input"
+          :class="[mode]"
+        >
+          <label>
+            <t k="cluster.machineConfig.pve.cloudInit.userData.label" />
+          </label>
+          <textarea
+            class="no-resize no-ease"
+            rows="12"
+            spellcheck="false"
+            :value="currentValue.userData"
+            :disabled="mode === 'view'"
+            placeholder="#cloud-config"
+            @input="e => currentValue.userData = e.target.value"
+          />
+        </div>
       </div>
     </div>
     <div class="row mb-20">
