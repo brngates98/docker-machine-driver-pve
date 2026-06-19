@@ -623,6 +623,36 @@ export default {
       </div>
     </div>
 
+    <h3>
+      <t k="cluster.machineConfig.pve.cloudInit.header" />
+    </h3>
+    <div class="row mb-20">
+      <div class="col span-12">
+        <!-- Cloud-init user data -->
+        <LabeledInput
+          type="multiline"
+          :mode="mode"
+          v-model:value="currentValue.userData"
+          label-key="cluster.machineConfig.pve.cloudInit.userData.label"
+          tooltip-key="cluster.machineConfig.pve.cloudInit.userData.tooltip"
+          placeholder="#cloud-config"
+        />
+      </div>
+    </div>
+    <div class="row mb-20">
+      <div class="col span-6">
+        <!-- Cloud-init source -->
+        <LabeledInput
+          type="text"
+          :mode="mode"
+          v-model:value="currentValue.cloudInit"
+          label-key="cluster.machineConfig.pve.cloudInit.source.label"
+          tooltip-key="cluster.machineConfig.pve.cloudInit.source.tooltip"
+          placeholder="https://example.com/cloud-config.yaml"
+        />
+      </div>
+    </div>
+
     <portal :to="`advanced-${uuid}`">
       <h3>
         <t k="cluster.machineConfig.pve.vmTags.header" />
@@ -688,36 +718,6 @@ export default {
             required
             min="1"
             step="1"
-          />
-        </div>
-      </div>
-
-      <h3>
-        <t k="cluster.machineConfig.pve.cloudInit.header" />
-      </h3>
-      <div class="row mb-20">
-        <div class="col span-12">
-          <!-- Cloud-init user data -->
-          <LabeledInput
-            type="multiline"
-            :mode="mode"
-            v-model:value="currentValue.userData"
-            label-key="cluster.machineConfig.pve.cloudInit.userData.label"
-            tooltip-key="cluster.machineConfig.pve.cloudInit.userData.tooltip"
-            placeholder="#cloud-config"
-          />
-        </div>
-      </div>
-      <div class="row mb-20">
-        <div class="col span-6">
-          <!-- Cloud-init source -->
-          <LabeledInput
-            type="text"
-            :mode="mode"
-            v-model:value="currentValue.cloudInit"
-            label-key="cluster.machineConfig.pve.cloudInit.source.label"
-            tooltip-key="cluster.machineConfig.pve.cloudInit.source.tooltip"
-            placeholder="https://example.com/cloud-config.yaml"
           />
         </div>
       </div>
