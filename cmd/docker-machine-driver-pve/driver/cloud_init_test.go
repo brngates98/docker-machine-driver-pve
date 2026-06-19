@@ -91,6 +91,7 @@ package_update: true
 	parsed := decodeCloudConfig(t, userdata)
 	require.Equal(t, false, parsed["package_update"])
 }
+
 func TestLoadCloudConfigFromSource_FileAndURL(t *testing.T) {
 	tempDir := t.TempDir()
 	filepath := filepath.Join(tempDir, "cloud-config.yaml")
