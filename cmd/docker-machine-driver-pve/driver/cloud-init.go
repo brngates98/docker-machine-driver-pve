@@ -131,7 +131,11 @@ func (d *Driver) generateCloudinitUserdata() (string, error) {
 }
 
 func (d *Driver) getBaseCloudinitUserdata() (map[string]interface{}, error) {
-	cloudConfig := strings.TrimSpace(d.CloudConfig)
+	cloudConfig := strings.TrimSpace(d.UserData)
+	if cloudConfig == "" {
+		cloudConfig = strings.TrimSpace(d.CloudConfig)
+	}
+
 	if cloudConfig == "" {
 		loadedCloudConfig, err := loadCloudConfigFromSource(strings.TrimSpace(d.CloudInit))
 		if err != nil {
